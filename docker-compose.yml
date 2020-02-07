@@ -1,48 +1,70 @@
 version: '3.7'
-
 services:
-
-  elasticsearch:
-    build:
-      context: elasticsearch/
-    volumes:
-      - ./elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+  es:
+    image: 'docker.elastic.co/elasticsearch/elasticsearch:7.5.0'
+    container_name: es01
     ports:
-      - "9200:9200"
-      - "9300:9300"
+      - 9200:9200
     environment:
-      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
-    networks:
-      - elk
-
-  logstash:
-    build:
-      context: logstash/
+      - node.name=es01
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - xpack.monitoring.enabled=false
+      - xpack.watcher.enabled=false
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
     volumes:
-      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
-    ports:
-      - "5000:5000"
-    environment:
-      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+      - './elasticsearch/config/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro'
     networks:
-      - elk
-    depends_on:
-      - elasticsearch
-
+      - efknet
+    restart: on-failure
   kibana:
-    build:
-      context: kibana/
-    volumes:
-      - ./kibana/config/:/usr/share/kibana/config:ro
+    image: 'docker.elastic.co/kibana/kibana:7.5.0'
+    environment:
+      SERVER_NAME: kibana
+      ELASTICSEARCH_HOSTS: 'http://es:9200'
     ports:
-      - "5601:5601"
+      - 5601:5601
     networks:
-      - elk
+      - efknet
     depends_on:
-      - elasticsearch
+      - es
+    restart: on-failure
+    logging: { driver: none }
 
+  # fluent-bit:
+  #   image: fluent/fluent-bit
+  #   restart: on-failure
+  #   volumes:
+  #     - './fluent-bit:/etc/fluent-bit'
+  #     - '/Volumes/Data/www/sitesoft/bpextra/storage/logs:/var/logs'
+  #   command:
+  #     /fluent-bit/bin/fluent-bit --config=/etc/fluent-bit/fluent.conf
+  #   depends_on:
+  #     - es
+  #   networks:
+  #     - efknet
+
+#   fluentd:
+#     image: fluentd
+#     restart: on-failure
+#     ports:
+#       - 4560/udp
+#     environment:
+#       ELASTIC_HOSTS: 'es:9200'
+#       LISTEN_PORT: 5160
+#       LOGSTASH_PREFIX: app-name
+#       LOGSTASH_DATEFORMAT: '%Y-%m-%d'
+#     volumes:
+#       - './fluent/fluent.conf:/fluentd/etc/fluent.conf:ro'
+#       - '/Volumes/Data/www/sitesoft/bpextra/storage/logs:/logs'
+#     depends_on:
+#       - es
+#     networks:
+#       - efknet
 networks:
-
-  elk:
-    driver: bridge
+  efknet: null

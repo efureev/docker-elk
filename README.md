@@ -13,7 +13,7 @@ Based on the official Docker images:
 * [kibana](https://github.com/elastic/kibana-docker)
 
 
-# How to setup 
+# How to setup
 
  1.Clone this repository
 
